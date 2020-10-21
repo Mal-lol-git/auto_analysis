@@ -5,14 +5,18 @@ import re
 import subprocess
 
 #ipaddress -> geopoint // return lat, lot
-def geo_point(ip_address):
-    cmd = 'curl http://ip-api.com/json/'+ip_address+'?fields=lat,lon'
+def location(ip_address):
+    cmd = 'curl http://ip-api.com/json/'+ip_address+'?fields=countryCode,region,regionName,lat,lon'
     result = subprocess.check_output(cmd, shell=True)
     geo_data = result.decode('utf-8')
+
+    countrycode = re.search('.*"countryCode":"(.*)","region":',geo_s)
+    region = re.search('.*"region":"(.*)","regionName"',geo_s)
+    regionName = re.search('.*"regionName":"(.*)","lat"',geo_s)
     
     lat = re.search('.*"lat":(.*),',geo_data)
     lon = re.search('.*"lon":(.*)}',geo_data)
-    return float(lat.group(1)), float(lon.group(1))
+    return countrycode.group(1), region.group(1), regionName.group(1), float(lat.group(1)), float(lon.group(1))
 
 
 def json_filter(path):
@@ -83,7 +87,10 @@ def json_filter(path):
         #Add network/hosts/location
         for row in range(len(j_data['network']['hosts'])):
             ip = j_data['network']['hosts'][row]['ip']
-            lat, lon = geo_point(ip)
+            countryCode, region, regionNamelat, lat, lon = location(ip)
+            j_data['network']['hosts'][row]['countryCode'] = countryCode
+            j_data['network']['hosts'][row]['region'] = region
+            j_data['network']['hosts'][row]['regionNamelat'] = regionNamelat            
             j_data['network']['hosts'][row]['location'] = {}
             j_data['network']['hosts'][row]['location']['lat'] = lat
             j_data['network']['hosts'][row]['location']['lon'] = lon
