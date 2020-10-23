@@ -85,15 +85,19 @@ def json_filter(path):
 
 
         #Add network/hosts/location
-        for row in range(len(j_data['network']['hosts'])):
-            ip = j_data['network']['hosts'][row]['ip']
-            countryCode, region, regionNamelat, lat, lon = location(ip)
-            j_data['network']['hosts'][row]['countryCode'] = countryCode
-            j_data['network']['hosts'][row]['region'] = region
-            j_data['network']['hosts'][row]['regionNamelat'] = regionNamelat            
-            j_data['network']['hosts'][row]['location'] = {}
-            j_data['network']['hosts'][row]['location']['lat'] = lat
-            j_data['network']['hosts'][row]['location']['lon'] = lon
+        for row in range(len(j_data['network']['domains'])):
+            ip = j_data['network']['domains'][row]['ip']
+            domain = j_data['network']['domains'][row]['domain']
+            if ip:
+                countryCode, region, regionNamelat, lat, lon = location(ip)
+            if not ip and domain:
+                countryCode, region, regionNamelat, lat, lon = location(domain)
+            j_data['network']['domains'][row]['countryCode'] = countryCode
+            j_data['network']['domains'][row]['region'] = region
+            j_data['network']['domains'][row]['regionNamelat'] = regionNamelat
+            j_data['network']['domains'][row]['location'] = {}
+            j_data['network']['domains'][row]['location']['lat'] = lat
+            j_data['network']['domains'][row]['location']['lon'] = lon
         
 
     #save json file
