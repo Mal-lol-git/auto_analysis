@@ -4,11 +4,20 @@ import os
 import re
 import subprocess
 
+protocol = ['hosts', 'domains', 'tcp', 'udp','http', 'dns', 'smtp']
+
+ip_list = set()
+domain_list = set()
+
+
 #ipaddress -> geopoint // return lat, lot
 def location(ip_address):
     cmd = 'curl http://ip-api.com/json/'+ip_address+'?fields=countryCode,region,regionName,lat,lon'
     result = subprocess.check_output(cmd, shell=True)
     geo_data = result.decode('utf-8')
+
+    if geo_data == '{}':
+        return False
 
     countrycode = re.search('.*"countryCode":"(.*)","region":',geo_s)
     region = re.search('.*"region":"(.*)","regionName"',geo_s)
@@ -17,6 +26,35 @@ def location(ip_address):
     lat = re.search('.*"lat":(.*),',geo_data)
     lon = re.search('.*"lon":(.*)}',geo_data)
     return countrycode.group(1), region.group(1), regionName.group(1), float(lat.group(1)), float(lon.group(1))
+
+#C&C server IP check -> network/total
+def ip_check(protocol, j_data):
+    if protocol == 'hosts':
+        for row in range(len(j_data['network'][protocol])):
+            ip = j_data['network'][protocol][row]['ip']
+            if ip: 
+                private_ip = re.search('^(10|172|192[.]168)[.]',ip)
+                if None == private_ip:
+                    ip_list.add(ip)
+
+    if protocol == 'domains':
+        for row in range(len(j_data['network'][protocol])):
+            ip = j_data['network'][protocol][row]['ip']
+            domain = j_data['network'][protocol][row]['domain']
+            if ip:
+                private_ip = re.search('^(10|172|192[.]168)[.]',ip)
+                if None == private_ip:
+                    ip_list.add(ip)
+            if not ip and domain:
+                domain_list.add(domain)
+
+    if protocol == 'tcp':
+        for row in range(len(j_data['network'][protocol])):
+            ip = j_data['network'][protocol][row]['dst']
+            if ip:
+                private_ip = re.search('^(10|172|192[.]168)[.]',ip)
+                if None == private_ip:
+                    ip_list.add(ip)
 
 
 def json_filter(path):
@@ -85,19 +123,15 @@ def json_filter(path):
 
 
         #Add network/hosts/location
-        for row in range(len(j_data['network']['domains'])):
-            ip = j_data['network']['domains'][row]['ip']
-            domain = j_data['network']['domains'][row]['domain']
-            if ip:
-                countryCode, region, regionNamelat, lat, lon = location(ip)
-            if not ip and domain:
-                countryCode, region, regionNamelat, lat, lon = location(domain)
-            j_data['network']['domains'][row]['countryCode'] = countryCode
-            j_data['network']['domains'][row]['region'] = region
-            j_data['network']['domains'][row]['regionNamelat'] = regionNamelat
-            j_data['network']['domains'][row]['location'] = {}
-            j_data['network']['domains'][row]['location']['lat'] = lat
-            j_data['network']['domains'][row]['location']['lon'] = lon
+        for row in protocol:
+            ip_check(row, j_data) 
+     
+        j_data['network']['total'] = []
+     
+        for ip in ip_list:
+            countryCode, region, regionNamelat, lat, lon = location(ip)
+
+            j_data['network']['total'].append({'ip': ip, 'countryCode': countryCode, 'region': region, 'regionNamelat': regionNamelat, 'location': {'lat': lat, 'lon': lon}})
         
 
     #save json file
